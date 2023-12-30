@@ -43,23 +43,73 @@ fn u8_vec_to_u64_vec(input: Vec<u8>) -> Vec<u64> {
     output
 }
 
-pub fn keccak256(input: &Vec<u8>) -> Vec<u8> {
-    unsafe {
-        keccak_new(0);
-    }
-    let input_u64 = u8_vec_to_u64_vec(input.clone());
-    for i in 0..input_u64.len() {
+pub struct KeccakHasher (u64, u64, u64); // data, byte index in data (little), buf size
+impl KeccakHasher {
+    pub fn new() -> Self {
         unsafe {
-            keccak_push(input_u64[i]);
+            keccak_new(1u64);
+        }
+        KeccakHasher(0u64, 0u64, 0u64)
+    }
+
+    pub fn update_byte(&mut self, v: u8) {
+        self.0 = self.0 + ((v as u64) << (self.1 * 8));
+        self.1 = self.1 + 1;
+        if self.1 >= 8 {
+            unsafe {
+                keccak_push(self.0);
+            }
+            self.0 = 0;
+            self.1 = 0;
+
+            self.2 = self.2 + 1;
+
+            if self.2 == 17 {
+                unsafe {
+                    keccak_finalize();
+                    keccak_finalize();
+                    keccak_finalize();
+                    keccak_finalize();
+                    keccak_new(0u64);
+                }
+                self.2 = 0;
+            }
         }
     }
-    let mut output_u64 = vec![0; 4];
-    unsafe {
-        for i in 0..4 {
-            output_u64[i] = keccak_finalize();
+
+    pub fn finalize(&mut self) -> [u64; 4] {
+        let bytes_to_pad = 136 - self.1 - self.2 * 8;
+        if bytes_to_pad == 1 {
+            unsafe {
+                keccak_push(self.0 + (0x81u64 << 56));
+            }
+        } else {
+            self.update_byte(1);
+            for _ in 0..bytes_to_pad-2 {
+                self.update_byte(0);
+            }
+            unsafe {
+                keccak_push(self.0 + (0x80u64 << 56));
+            }
+        }
+        unsafe {
+            [
+                keccak_finalize(),
+                keccak_finalize(),
+                keccak_finalize(),
+                keccak_finalize(),
+            ]
         }
     }
-    let output_u8: Vec<u8> = output_u64
+}
+
+pub fn keccak256(input: &Vec<u8>) -> Vec<u8> {
+    let mut hasher = KeccakHasher::new();
+    for d in input {
+        hasher.update_byte(*d);
+    }
+    let keccak = hasher.finalize();
+    let output_u8: Vec<u8> = keccak
         .iter()
         .flat_map(|&value| value.to_le_bytes().to_vec())
         .collect();
@@ -88,6 +138,12 @@ pub fn zkmain() -> i64 {
 
     keccak256check(&vec![], &emtpy_standard_output);
 
+    // 1-byte input
+    let byte1_output : Vec<u8> = [
+        21, 191, 54, 255, 99, 225, 69, 172, 52, 26, 134, 0, 126, 137, 21, 92, 243, 18, 222, 79, 162, 167, 211, 173, 63, 188, 75, 120, 1, 3, 35, 72,
+    ].to_vec();
+    keccak256check(&vec![197], &byte1_output);
+
     // short input
     let short_standard_output: Vec<u8> = [
         172, 132, 33, 155, 248, 181, 178, 245, 199, 105, 157, 164, 188, 53, 193, 25, 7, 35, 159,
@@ -95,7 +151,7 @@ pub fn zkmain() -> i64 {
     ]
     .to_vec();
     // 整8个U8, 也就是整64个bit
-    let mut input: Vec<u8> = [102, 111, 111, 98, 97, 114, 97, 97].to_vec();
+    let input: Vec<u8> = [102, 111, 111, 98, 97, 114, 97, 97].to_vec();
     // 由于wasm的内存是以字节为单位的，所以这里需要将u64转换为u8
     keccak256check(&input, &short_standard_output);
 
@@ -105,7 +161,7 @@ pub fn zkmain() -> i64 {
         16, 102, 150, 120, 100, 130, 224, 177, 64, 98, 53, 252,
     ]
     .to_vec();
-    let mut input: Vec<u8> = [
+    let input: Vec<u8> = [
         65, 108, 105, 99, 101, 32, 119, 97, 115, 32, 98, 101, 103, 105, 110, 110, 105, 110, 103,
         32, 116, 111, 32, 103, 101, 116, 32, 118, 101, 114, 121, 32, 116, 105, 114, 101, 100, 32,
         111, 102, 32, 115, 105, 116, 116, 105, 110, 103, 32, 98, 121, 32, 104, 101, 114, 32, 115,
@@ -125,7 +181,7 @@ pub fn zkmain() -> i64 {
     ]
     .to_vec();
     // zkwasm-host-keccak256 实现的keccak256 必须是U8的倍数, 这里input不满足,过不比较了
-    //keccak256check(&input, &long_standard_output);
+    keccak256check(&input, &long_standard_output);
 
     0
 }

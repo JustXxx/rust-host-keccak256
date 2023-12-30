@@ -2,3 +2,15 @@
 ```
 wasm-pack build --release
 ```
+
+# checkout zkWasm with host
+```
+git clone -b host-ops-1.6 https://github.com/ethstorage/zkWasm.git
+cd zkWasm
+git submodule update --init
+```
+
+# run the cli (in zkWasm folder)
+```
+cargo run -- --function zkmain --output ./output --param ./param --host host --wasm ../rust-host-keccak256/pkg/rust-sdk-test.wasm dry-run
+```

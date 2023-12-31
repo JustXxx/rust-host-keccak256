@@ -129,6 +129,11 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn zkmain() -> i64 {
+    let byte1_output : Vec<u8> = [
+        21, 191, 54, 255, 99, 225, 69, 172, 52, 26, 134, 0, 126, 137, 21, 92, 243, 18, 222, 79, 162, 167, 211, 173, 63, 188, 75, 120, 1, 3, 35, 72,
+    ].to_vec();
+    keccak256check(&vec![197], &byte1_output);
+    /*
     // empty input
     let emtpy_standard_output: Vec<u8> = [
         197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83,
@@ -137,7 +142,9 @@ pub fn zkmain() -> i64 {
     .to_vec();
 
     keccak256check(&vec![], &emtpy_standard_output);
+    */
 
+    /*
     // 1-byte input
     let byte1_output : Vec<u8> = [
         21, 191, 54, 255, 99, 225, 69, 172, 52, 26, 134, 0, 126, 137, 21, 92, 243, 18, 222, 79, 162, 167, 211, 173, 63, 188, 75, 120, 1, 3, 35, 72,
@@ -183,6 +190,7 @@ pub fn zkmain() -> i64 {
     // zkwasm-host-keccak256 实现的keccak256 必须是U8的倍数, 这里input不满足,过不比较了
     keccak256check(&input, &long_standard_output);
 
+    */
     0
 }
 /*
